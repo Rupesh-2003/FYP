@@ -26,7 +26,6 @@ import {
   isPatientAlreadyRegistered,
   sendEth,
 } from "../apis/medblock";
-import { sendOTP, verifyOTP } from "../apis/otpVerification";
 import { useAuth } from "../services/authorization";
 import { dateToTimestamp, figureOutGender } from "../utils/dataUtils";
 import {
@@ -43,103 +42,69 @@ import {
   NoteSection,
 } from "./PatientRegistration.styled";
 import basicIllustration from "../assets/illustrations/Overview.png";
-import otpSuccess from "../assets/illustrations/otpSuccess.png";
 
 const PatientRegistration = () => {
   const auth = useAuth();
 
-  // details | otp | success
   const [progress, setProgress] = useState(PROGRESS_STATUSES.DETAILS);
-
   const [fname, setFname] = useState("");
   const [lname, setLname] = useState("");
   const [phone, setPhone] = useState("");
-  const [otp, setOTP] = useState("");
   const [address, setAddress] = useState("");
   const [dob, setDob] = useState(null);
   const [gender, setGender] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
-
-  const [generatedAccount, setGeneratedAccount] = useState(undefined);
-
+  const [generatedAccount, setGeneratedAccount] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [resending, setResending] = useState(false);
+  const [error, setError] = useState(null);
 
-  async function resendOTP() {
-    setResending(true);
-    try {
-      const success = await sendOTP(phone);
-      if (!success) alert("Some error sending OTP");
-      setResending(false);
-    } catch (err) {
-      console.log(err);
-      alert("Something went wrong sending the OTP, try again");
-      setResending(false);
+  const validateForm = () => {
+    if (!fname || !lname) {
+      setError("Please enter both first and last name");
+      return false;
     }
-  }
-
-  async function goToOTPSection() {
-    if (!fname || !lname || !phone || !dob || !address) {
-      alert("Please fill out all the fields !!");
-      return;
+    if (!phone || phone.length < 10) {
+      setError("Please enter a valid phone number");
+      return false;
+    }
+    if (!dob) {
+      setError("Please select date of birth");
+      return false;
+    }
+    if (!address) {
+      setError("Please enter address");
+      return false;
     }
     if (!termsAccepted) {
-      alert("Please accept the terms !!");
-      return;
+      setError("Please accept the terms and conditions");
+      return false;
     }
+    setError(null);
+    return true;
+  };
+
+  async function registerPatient() {
+    if (!validateForm()) return;
 
     setIsProcessing(true);
-    try {
-      const success = await sendOTP(phone);
-      if (success) setProgress(PROGRESS_STATUSES.OTP);
-      else alert("Some error sending OTP");
-      setIsProcessing(false);
-    } catch (err) {
-      console.log(err);
-      alert("Something went wrong sending the OTP, try again");
-      setIsProcessing(false);
-    }
-  }
-
-  async function registerPatient(event) {
-    // if (!otp || typeof otp !== "string" || otp.length !== 6)
-    //   return alert("Enter valid OTP !!");
-
-    // setIsProcessing(true);
-
-    // try {
-    //   const success = await verifyOTP(phone, otp);
-    //   console.log(success);
-    //   if (!success) {
-    //     alert("Wrong OTP!");
-    //     setIsProcessing(false);
-    //     return;
-    //   }
-    // } catch (err) {
-    //   console.log(err);
-    //   alert("Something went wrong verifying the OTP, Try again");
-    //   setIsProcessing(false);
-    //   return;
-    // }
-
-    let newPatientAccount = web3.eth.accounts.create(phone + fname + lname);
-    console.log("New patient account generated: ", newPatientAccount);
-
-    let isOccupied = await isPatientAlreadyRegistered(
-      newPatientAccount.address
-    );
-    if (isOccupied) {
-      setIsProcessing(false);
-      return alert(
-        "The generated address is occupied by another patient. Reload & try again"
-      );
-    }
+    setError(null);
 
     try {
-      // let dobTimestamp = dob / 1000;
-      let dobTimestamp = dateToTimestamp(dob);
-      console.log(dobTimestamp);
-      const registeredPatientTxReceipt = await newPatientRegistration(
+      // Generate new account
+      const newPatientAccount = web3.eth.accounts.create(phone + fname + lname);
+      console.log("New patient account generated: ", newPatientAccount);
+
+      // Check if address is already registered
+      const isOccupied = await isPatientAlreadyRegistered(newPatientAccount.address);
+      if (isOccupied) {
+        throw new Error("Generated address is occupied. Please try again");
+      }
+
+      // Convert DOB to timestamp
+      const dobTimestamp = dateToTimestamp(dob);
+
+      // Register patient
+      const registrationSuccess = await newPatientRegistration(
         fname,
         lname,
         phone,
@@ -149,46 +114,35 @@ const PatientRegistration = () => {
         gender,
         auth.wallet.address
       );
-      if (registeredPatientTxReceipt) {
-        sendEth(auth.wallet.address, newPatientAccount.address, "0.01");
-        setGeneratedAccount(newPatientAccount);
-        setProgress(PROGRESS_STATUSES.SUCCESS);
-      } else {
-        console.log("Patient not registered due to some error");
+
+      if (!registrationSuccess) {
+        throw new Error("Failed to register patient");
       }
+
+      // Send initial ETH
+      console.log("sending patient initial eth")
+      await sendEth(auth.wallet.address, newPatientAccount.address, "0.001");
+      console.log("Sent eth")
+    
+      // Update state
+      setGeneratedAccount(newPatientAccount);
+      setProgress(PROGRESS_STATUSES.SUCCESS);
     } catch (err) {
-      console.log(
-        "Some error registering new hospital:",
-        newPatientAccount.address
-      );
-      console.log(err);
+      console.error("Registration error:", err);
+      setError(err.message || "Failed to register patient. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
-
-    setIsProcessing(false);
-  }
-
-  function skipOTPAndRegister() {
-    if (!fname || !lname || !phone || !dob || !address) {
-      alert("Please fill out all the fields !!");
-      return;
-    }
-    if (!termsAccepted) {
-      alert("Please accept the terms !!");
-      return;
-    }
-    setProgress(PROGRESS_STATUSES.SUCCESS);
   }
 
   function downloadAddress() {
-    if (!fname || !lname || !generatedAccount || !generatedAccount.privateKey)
-      return;
-    generateAddressFile(fname + "-" + lname, generatedAccount.address);
+    if (!generatedAccount) return;
+    generateAddressFile(`${fname}-${lname}`, generatedAccount.address);
   }
 
   async function downloadPrivateKey() {
-    if (!fname || !lname || !generatedAccount || !generatedAccount.privateKey)
-      return;
-    generateKeyFile(fname + "-" + lname, generatedAccount.privateKey);
+    if (!generatedAccount) return;
+    generateKeyFile(`${fname}-${lname}`, generatedAccount.privateKey);
   }
 
   if (!auth.loggedIn || !auth.entityInfo || !auth.wallet || !auth.authority) {
@@ -212,6 +166,11 @@ const PatientRegistration = () => {
                 Patient registration
               </Heading>
               <br />
+              {error && (
+                <div className="alert alert-danger" role="alert">
+                  {error}
+                </div>
+              )}
               <Box component="form">
                 <div>
                   <Row>
@@ -282,6 +241,7 @@ const PatientRegistration = () => {
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           autoComplete="nope"
+                          type="tel"
                         />
                         <br />
                         <br />
@@ -313,80 +273,18 @@ const PatientRegistration = () => {
               <CoreButton
                 size="lg"
                 disabled={isProcessing}
-                onClick={!isProcessing ? registerPatient : null}
+                onClick={registerPatient}
               >
                 {isProcessing ? (
                   <>
-                    Sending OTP &nbsp;&nbsp;
+                    Registering Patient &nbsp;&nbsp;
                     <FontAwesomeIcon icon={faSpinner} className="fa-spin" />
                   </>
                 ) : (
-                  "Proceed to OTP verification"
+                  "Register Patient"
                 )}
               </CoreButton>
             </center>
-          ) : progress === PROGRESS_STATUSES.OTP ? (
-            <Row style={{ minHeight: "450px" }}>
-              <Col md={8} className="d-flex align-items-center">
-                <div className="d-block w-100">
-                  <ThemeText fontSize="25px">Confirm OTP</ThemeText>
-                  <ThemeText fontSize="16px">sent to +91 {phone}</ThemeText>
-                  <br />
-
-                  <div className="w-75">
-                    <center>
-                      <TextField
-                        required
-                        fullWidth
-                        className="my-2"
-                        variant="outlined"
-                        label="OTP"
-                        value={otp}
-                        onChange={(e) => setOTP(e.target.value)}
-                        autoComplete="nope"
-                      />
-                      <br />
-                      <br />
-
-                      <CoreButton
-                        size="lg"
-                        className="w-100 my-2"
-                        disabled={isProcessing}
-                        onClick={!isProcessing ? registerPatient : null}
-                      >
-                        {isProcessing ? (
-                          <>
-                            Verifying OTP &nbsp;&nbsp;
-                            <FontAwesomeIcon
-                              icon={faSpinner}
-                              className="fa-spin"
-                            />
-                          </>
-                        ) : (
-                          "Verify OTP"
-                        )}
-                      </CoreButton>
-                      <ThemeText
-                        fontSize="16px"
-                        className="custom-text-button"
-                        onClick={resendOTP}
-                      >
-                        {resending ? "sending OTP ...." : "resend OTP"}
-                      </ThemeText>
-                      <br />
-                    </center>
-                  </div>
-                </div>
-              </Col>
-              <Col md={4}>
-                <img
-                  className="my-4"
-                  style={{ width: "90%" }}
-                  alt="about medBlock"
-                  src={otpSuccess}
-                />
-              </Col>
-            </Row>
           ) : progress === PROGRESS_STATUSES.SUCCESS ? (
             <div>
               <div className="d-flex justify-content-end">
@@ -403,7 +301,7 @@ const PatientRegistration = () => {
               <br />
               <div id="receipt-pdf-content">
                 <Heading fontSize="36px">
-                  Patient successfuly registered !!
+                  Patient successfully registered!
                 </Heading>
                 <br />
                 <Heading fontSize="25px">
@@ -435,15 +333,16 @@ const PatientRegistration = () => {
                   </CoreButton>
                 </div>
                 <br />
-                <br /> <br />
+                <br />
+                <br />
                 <br />
                 <NoteSection>Note:</NoteSection>
-                Address and Private key card will not be accesible later.
+                Address and Private key card will not be accessible later.
+                <br />
+                Please store them securely.
               </div>
             </div>
-          ) : (
-            ""
-          )}
+          ) : null}
         </Col>
       </Row>
     </Container>

@@ -101,7 +101,7 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <Nbsp />
-                User Registration
+                Patient Registration
               </div>
             </Navlink>
           </ListItems>
