@@ -9,7 +9,6 @@ import AdapterDateFns from "@mui/lab/AdapterDateFns";
 import { Preview, print } from "react-html2pdf";
 
 import { ModalUpload, Backdrop } from "../components/ModalUpload";
-
 import { CoreButton } from "../components/core";
 import KeyInputs from "../components/KeyInputs";
 
@@ -87,11 +86,9 @@ import {
   RecieptButton,
 } from "./NewRecord.styled";
 
-// import { ReactComponent as Dashboardlogo } from "../assets/icons/hospital/dashboardicon.svg";
 import { ReactComponent as Dashboard } from "../assets/icons/hospital/Dashboard.svg";
 import { ReactComponent as AddNewRecordLogo } from "../assets/icons/hospital/AddNewRecordBlue.svg";
 import { ReactComponent as LogoutLogo } from "../assets/icons/hospital/logouticon.svg";
-// import { ReactComponent as UserLogo } from "../assets/icons/hospital/usericon.svg";
 import { ReactComponent as SettingsLogo } from "../assets/icons/hospital/settingsicon.svg";
 import { ReactComponent as HospitalLogo } from "../assets/icons/hospital/hospital.svg";
 import { ReactComponent as TickMark } from "../assets/icons/hospital/greentick.svg";
@@ -105,10 +102,12 @@ import { ReactComponent as DeclineLogo } from "../assets/icons/hospital/Decline.
 const NewRecord = (props) => {
   const auth = useAuth();
 
-  //    key | add | confirm | receept
   const [progress, setProgress] = useState(PROGRESS_STATUSES.PATIENT_ADDRESS);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [modalState, setModalState] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [fileHashes, setFileHashes] = useState([]); // Changed from hashes to fileHashes for clarity
 
   const hospitalInfo = auth.entityInfo;
 
@@ -120,8 +119,6 @@ const NewRecord = (props) => {
   const [diagnoseDate, setDiagnoseDate] = useState(new Date());
   const [wasAdmitted, setWasAdmitted] = useState(false);
   const [dischargeDate, setDischargeDate] = useState(new Date());
-  const [uploadedFiles, setuploadedFiles] = useState([]);
-
   const [finalPatientAddress, setFinalPatientAddress] = useState(undefined);
   const [basicPatientInfo, setBasicPatientInfo] = useState({
     name: "John Doe",
@@ -130,14 +127,89 @@ const NewRecord = (props) => {
     gender: "Male",
   });
 
+  async function uploadBase64(base64String, fileName) {
+    try {
+      const binaryString = atob(base64String);
+      const arrayBuffer = new ArrayBuffer(binaryString.length);
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      for (let i = 0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
+      }
+
+      const blob = new Blob([uint8Array], { type: "application/octet-stream" });
+      const file = new File([blob], fileName);
+
+      const data = new FormData();
+      data.append("file", file);
+
+      const upload = await fetch(
+        "https://api.pinata.cloud/pinning/pinFileToIPFS",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.REACT_APP_PINATA_JWT}`,
+          },
+          body: data,
+        }
+      );
+
+      const uploadRes = await upload.json();
+      return uploadRes;
+    } catch (error) {
+      console.error("Error uploading to Pinata:", error);
+      throw error;
+    }
+  }
+
+  async function uploadFilesToPinata(files) {
+    setIsUploading(true);
+    const newHashes = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+        
+        await new Promise((resolve) => {
+          reader.onload = async () => {
+            try {
+              const base64String = reader.result.split(",")[1];
+              const response = await uploadBase64(base64String, file.name);
+              newHashes.push({
+                cid: response.IpfsHash,
+                name: file.name
+              });
+              resolve();
+            } catch (error) {
+              console.error("Error uploading file:", error);
+              resolve();
+            }
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (newHashes.length === 0) {
+        throw new Error("No files were successfully uploaded");
+      }
+
+      setFileHashes(newHashes);
+      return newHashes;
+    } catch (error) {
+      console.error("Upload error:", error);
+      throw error;
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   function uploadClickHandler() {
     setModalState(true);
   }
 
   function uploadFileHandler(files) {
-    // const fileToUpload = { ...files };
-    setuploadedFiles(files);
-    // console.log(fileToUpload);
+    setUploadedFiles(files);
   }
 
   function closeModal() {
@@ -148,7 +220,6 @@ const NewRecord = (props) => {
     setIsProcessing(true);
     try {
       const patientInfo = await getPatientPersonalInfo(patientAddress);
-      console.log(`Patient address: ${patientAddress}, Info: \n`, patientInfo);
       setBasicPatientInfo({
         name: patientInfo.fname + " " + patientInfo.lname,
         dob: dateFromTimestamp(patientInfo.birthdate),
@@ -162,7 +233,6 @@ const NewRecord = (props) => {
       alert("Patient details not found :( \nVerify the address!");
       console.log(err);
       setIsProcessing(false);
-      return;
     }
   }
 
@@ -171,13 +241,23 @@ const NewRecord = (props) => {
     setProgress(PROGRESS_STATUSES.RECORD_DETAILS);
   }
 
-  function validateInformation() {
+  async function validateInformation() {
     if (!treatment || !medication) {
       alert("Please fill out all the fields !!");
       return;
     }
-    console.log("new record details:");
-    console.log({
+
+    if (uploadedFiles.length > 0) {
+      try {
+        setIsProcessing(true);
+        await uploadFilesToPinata(uploadedFiles);
+      } catch (error) {
+        setIsProcessing(false);
+        return;
+      }
+    }
+
+    console.log("new record details:", {
       finalPatientAddress,
       disease,
       treatment,
@@ -187,13 +267,17 @@ const NewRecord = (props) => {
       wasAdmitted,
       diagnoseDate,
       dischargeDate,
-      uploadedFiles,
+      fileHashes
     });
+    
     setProgress(PROGRESS_STATUSES.CONFIRM);
+    setIsProcessing(false);
   }
 
   async function sendNewRecord() {
     setIsProcessing(true);
+    console.log("File hashes before sending:", fileHashes);
+    
     try {
       const response = await addNewRecord(
         finalPatientAddress,
@@ -205,17 +289,17 @@ const NewRecord = (props) => {
         wasAdmitted,
         diagnoseDate,
         dischargeDate,
-        uploadedFiles,
+        fileHashes,
         auth.wallet.address
       );
+      
       console.log(response);
       setIsProcessing(false);
       if (response) setProgress(PROGRESS_STATUSES.RECIEPT);
     } catch (err) {
-      alert("Some error occured during adding new record !!");
+      alert("Some error occurred during adding new record !!");
       console.log(err);
       setIsProcessing(false);
-      return;
     }
   }
 
@@ -230,7 +314,6 @@ const NewRecord = (props) => {
       {modalState && (
         <ModalUpload
           closeModal={closeModal}
-          // uploadedFiles={Object.values(uploadedFiles)}
           uploadedFiles={uploadedFiles}
           uploadFileHandler={uploadFileHandler}
         />
@@ -238,10 +321,8 @@ const NewRecord = (props) => {
       <Left>
         <NavMenuList>
           <ListItems>
-            {/* <Navlink to="/newRecord">Dashboard</Navlink> */}
             <Navlink to="/hospitalDashboard">
               <div>
-                {/* <Dashboardlogo /> */}
                 <Dashboard />
               </div>
               <div>
@@ -253,7 +334,6 @@ const NewRecord = (props) => {
           <ListItemsActive>
             <NavlinkActive to="/newRecord">
               <div>
-                {/* <UserLogo /> */}
                 <AddNewRecordLogo />
               </div>
               <div>
@@ -394,31 +474,21 @@ const NewRecord = (props) => {
                     />
                   </LocalizationProvider>
                   <br />
-                  {/* <input
-                    type="file"
-                    multiple
-                    label="Upload file"
-                    accept="image/x-png,image/jpg,image/jpeg,image/png,.pdf"
-                    onChange={(e) => {
-                      setuploadedFiles(e.target.files);
-                      console.log(e.target.files);
-                    }}
-                  /> */}
                 </div>
               </InputSubContainer>
             </InputContainer>
             <Buttons>
               <CoreButton
-                onClick={uploadClickHandler} //change to open upload modal
-                // style={{ width: "150px", margin: "auto" }}
+                onClick={uploadClickHandler}
                 background="#387ED1"
+                disabled={isUploading}
               >
-                <UploadLogo /> Upload reports
+                <UploadLogo /> 
+                {isUploading ? "Uploading..." : "Upload reports"}
               </CoreButton>
               <CoreButton
-                disabled={isProcessing}
+                disabled={isProcessing || isUploading}
                 onClick={!isProcessing ? validateInformation : null}
-                // style={{ width: "150px", margin: "auto" }}
                 background="#38D147"
               >
                 {isProcessing ? "Processing..." : "Proceed"}

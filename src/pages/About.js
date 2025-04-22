@@ -73,7 +73,7 @@ const About = () => {
           <div className="col-sm-8">
             <br />
             <br />
-            <h2>Medblock</h2>
+            <h2>Medikeep</h2>
             <br />
             <h4>
               A <b>Decentralised platform</b> to store patient’s medical records

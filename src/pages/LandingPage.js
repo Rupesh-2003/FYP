@@ -73,12 +73,14 @@ const LandingPage = () => {
       )}
       <NavbarContainer>
         <Logo />
-        <AppName>MedBlock</AppName>
+        <AppName>Medikeep</AppName>
         <Home onClick={() => history.push("/home")}>
           Home
           <BlueLine />
         </Home>
         <About onClick={() => history.push("/about")}>About</About>
+        <About onClick={() => history.push("/medicine_comparison")}>Medicine Comparison</About>
+        <About onClick={() => history.push("/disease_predition")}>Disease Prediction</About>
         {auth.loggedIn ? (
           <Login onClick={() => history.push("/dashboard")}>Dashboard</Login>
         ) : (
@@ -146,7 +148,7 @@ const LandingPage = () => {
             </ImageAndTextContainer>
           </SubContainer5>
         </SubContainer4>
-        <LoginText>Login To MedBlock</LoginText>
+        <LoginText>Login To Medikeep</LoginText>
         <LoginFlex>
           <LoginContainer onClick={() => history.push("/login/patient")}>
             <LoginImage src={PatientLoginIllustration} />
@@ -165,7 +167,7 @@ const LandingPage = () => {
             <LoginButton style={{ width: "90%" }}>View AnyRecords</LoginButton>
           </LoginContainer>
         </LoginFlex>
-        <Footer>&copy;MedBlock</Footer>
+        <Footer>&copy;Medikeep</Footer>
       </SubContainer1>
     </Container>
   );

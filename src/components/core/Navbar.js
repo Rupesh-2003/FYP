@@ -27,7 +27,7 @@ const CustomNavbar = () => {
             width="30"
             className="d-inline-block align-top"
           />{" "}
-          &nbsp; MedBlock
+          &nbsp; Medikeep
         </Navbar.Brand>
 
         <Navbar.Toggle />
@@ -38,6 +38,12 @@ const CustomNavbar = () => {
           <Nav style={{ columnGap: "24px", alignItems: "center" }}>
             <Nav.Link as={Link} to="/about">
               About
+            </Nav.Link>
+            <Nav.Link as={Link} to="/medicine_comparison">
+              Medicine Comparison
+            </Nav.Link>
+            <Nav.Link as={Link} to="/disease_predition">
+              Disease Prediction
             </Nav.Link>
             <Nav.Link as={Link} to="/dashboard">
               Dashboard

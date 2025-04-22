@@ -138,33 +138,27 @@ export async function addNewRecord(
   wasAdmitted,
   diagnoseDateObj,
   dischargeDateObj,
-  uploadedFiles,
+  hashes,
   senderHospitalAddress
 ) {
   const diagnoseDateString = dateToTimestamp(diagnoseDateObj);
   const dischargeDateString = wasAdmitted
     ? dateToTimestamp(dischargeDateObj)
     : 0;
-
+  // Ensure hashes is always an array
+  const filesArray = Array.isArray(hashes) ? hashes : [hashes];
+  console.log(hashes,"skdbcksdb");
+  // Extract CIDs and filenames
+  const cids = filesArray.map(file => file.cid);
+  console.log(cids);
+  const fileNames = filesArray.map(file => file.name);
+  console.log(fileNames);
   const confirmation = window.confirm(
     "Do you really want to add this record ? \nThis can't be undone..."
   );
   if (!confirmation) return false;
 
-  // const { recordID } = recordDetails;
-
-  // if(!recordID && recordID !== 0)
-  //     return new Error("Invalid record number / ID");
-
-  const results = await uploadFilesToIPFS(uploadedFiles);
-  console.log("IPFS file upload result:", results);
-
-  const cids = results.map(result => result.cid);
-  console.log("View files on IPFS:");
-  cids.forEach(cid => console.log(cidToURL(cid)));
-
-  const fileNames = results.map(result => result.name);
-
+  
   console.log("New record details: ", {
     patientBlockchainAddress,
     disease,
@@ -175,8 +169,18 @@ export async function addNewRecord(
     diagnoseDateString,
     dischargeDateString,
     cids,
-    titles: fileNames
+    fileNames
   });
+
+  // Validate we have the expected data
+  if (cids.some(cid => !cid)) {
+    console.error("Some CIDs are missing in the hashes array");
+    throw new Error("Invalid file data - missing CIDs");
+  }
+  if (fileNames.some(name => !name)) {
+    console.error("Some filenames are missing in the hashes array");
+    throw new Error("Invalid file data - missing filenames");
+  }
 
   const tx = MedBlock.methods.addRecord(
     patientBlockchainAddress,
@@ -188,16 +192,14 @@ export async function addNewRecord(
     diagnoseDateString,
     dischargeDateString,
     cids,
-    fileNames,
+    fileNames
   );
+
   console.log("New record transaction: ", tx);
 
   const gasPrice = await web3.eth.getGasPrice();
   const gas = (await tx.estimateGas({ from: senderHospitalAddress })) + 20000;
-  console.log(gas, gasPrice);
-
-  // const nonce = await web3.eth.getTransactionCount(accountAddress);
-  // console.log(nonce);
+  console.log("Gas estimate:", gas, "Gas price:", gasPrice);
 
   try {
     const receipt = await tx.send({
@@ -205,7 +207,7 @@ export async function addNewRecord(
       gas,
       gasPrice,
     });
-    console.log(receipt);
+    console.log("Transaction successful:", receipt);
     console.log(`Transaction hash: ${receipt.transactionHash}`);
     console.log(
       `View the transaction here: `,
@@ -213,11 +215,12 @@ export async function addNewRecord(
     );
     return receipt;
   } catch (err) {
-    console.log(
-      "Some error sending record approval transaction from account:",
-      senderHospitalAddress
+    console.error(
+      "Error sending record approval transaction from account:",
+      senderHospitalAddress,
+      err
     );
-    console.log(err);
+    throw err; // Re-throw the error for handling in the calling function
   }
 }
 

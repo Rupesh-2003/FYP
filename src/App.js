@@ -1,7 +1,9 @@
+// import { ChakraProvider } from "@chakra-ui/react";
 import React from "react";
 import NewRecord from "./pages/NewRecord";
 import { BrowserRouter, Route, Switch, Redirect } from "react-router-dom";
-
+// import { baseTheme } from "@chakra-ui/theme";
+// import { Provider } from "@chakra-ui/react/provider";
 import {
   About,
   LandingPage,
@@ -25,15 +27,29 @@ import "./App.css";
 import "./apis/medblock";
 
 import { AuthProvider } from "./services/authorization";
+import DiseasePrediction from "./pages/disease_pred";
+import MedicineCompare from "./pages/medicine_compare";
 
 const App = () => {
   return (
+    // <ChakraProvider>
+    // {/* <Provider theme={baseTheme}> */}
     <AuthProvider>
       <BrowserRouter>
         <Navbar />
         <Switch>
           <Route exact path="/" component={LandingPage} />
           <Route exact path="/about" component={About} />
+          <Route
+            exact
+            path="/disease_predition"
+            component={DiseasePrediction}
+          />
+          <Route
+            exact
+            path="/medicine_comparison"
+            component={MedicineCompare}
+          />
 
           <Route exact path="/dashboard" component={UniversalDashboard} />
           <Route exact path="/adminDashboard" component={AdminDashboard} />
@@ -57,6 +73,8 @@ const App = () => {
         </Switch>
       </BrowserRouter>
     </AuthProvider>
+    // {/* </Provider> */}
+    // </ChakraProvider>
   );
 };
 

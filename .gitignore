@@ -128,3 +128,8 @@ yarn-error.log*
 
 #Prettier
 .prettierrc
+
+/backend/models/disease_prediction_model.pkl
+
+
+/backend/models/tfidf_vectorizer.pkl

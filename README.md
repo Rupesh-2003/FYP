@@ -1,6 +1,6 @@
 <div align="center">
   <img src="https://user-images.githubusercontent.com/48476025/151673564-63a143df-6818-4aac-a74d-8812f201fc8f.png">
-  <h1> MedBlock </h1>
+  <h1> Medikeep </h1>
   <h3> Store your medical records securely on blockchain </h3>
   Built with ❤️ for S.P.I.T & Kardia Hackathon
   &nbsp;&nbsp;&nbsp;
