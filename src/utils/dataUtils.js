@@ -37,7 +37,8 @@ export function cidToURL(cid, fileName, extension){
     if(!cid)
         return "";
     // cid = "Qmao2KAKTMzqbe1syY33pzZFMLZMv3jkh1Hk6pyppdhBkX";
-    return `https://black-hollow-buzzard-800.mypinata.cloud/ipfs/${cid}?filename=${fileName}.${extension}`
+    // return `https://black-hollow-buzzard-800.mypinata.cloud/ipfs/${cid}?filename=${fileName}.${extension}`
+    return `https://magenta-glamorous-silverfish-702.mypinata.cloud/ipfs/${cid}?pinataGatewayToken=aMhZLFDXoAnaPBLjmo98KI89cumJQ5K7i_7xh5p49rS853TVXXJIEINrc_1-pYZv`
     // return `https://ipfs.infura.io/ipfs/${cid}?filename=${fileName}.${extension}`;
 }
 

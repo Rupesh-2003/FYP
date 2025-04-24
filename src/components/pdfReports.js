@@ -37,6 +37,7 @@ const Link = styled.a`
 const PdfReports = (props) => {
     return (
         <Container>
+            PDF Reports
             {props.reports.map((report, idx) => {
                 return (
                     <Link href={report.url} target="_blank" key={report.url+idx}>

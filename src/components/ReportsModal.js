@@ -142,7 +142,7 @@ const ReportsModal = props =>{
                 Reports : 
             </ModalSubHeading>
             <div style={{width: "100%", height: "300px", textAlign: "center"}}>
-            {imageReports.length === 0 && <div style={{marginTop: '100px'}}>"No reports found !"</div>}
+            {imageReports.length === 0 && <div style={{marginTop: '100px'}}>"No Image reports found !"</div>}
             {imageReports.length > 0 && <Swiper
                 spaceBetween={50}
                 slidesPerView={1}

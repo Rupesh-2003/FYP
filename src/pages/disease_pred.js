@@ -40,19 +40,42 @@ export default function DiseasePrediction() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-      <div style={{ height: "500px", overflowY: "auto", display: "flex", justifyContent: "center" }}>
-        <div style={{ fontSize: "1.125rem", width: "70%", paddingTop: "2.5rem", marginBottom: "2.5rem" }}>
-          {isThinking ? (
-            <TypewriterEffect text={prediction} repeat={true} speed={100} />
-            
-          ) : (
-            <TypewriterEffect text={prediction} speed={20} />
-            
-          )}
-        </div>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ 
+    height: "500px", 
+    overflowY: "auto", 
+    display: "flex", 
+    alignItems: "center", 
+    flexDirection: "column" 
+    }}>
+    {prediction ? (
+      <div style={{ 
+        fontSize: "1.125rem", 
+        width: "70%", 
+        paddingTop: "2.5rem", 
+        marginBottom: "2.5rem", 
+        textAlign: "center" 
+      }}>
+        {isThinking ? (
+          <TypewriterEffect text={prediction} repeat={true} speed={100} />
+        ) : (
+          <TypewriterEffect text={prediction} speed={20} />
+        )}
       </div>
-      <div style={{ width: "100%", display: "flex", justifyContent: "center", borderTop: "1px solid gray", paddingTop: "1rem" }}>
+    ) : (
+      <div style={{ 
+        fontSize: "2rem", 
+        fontWeight: "bold", 
+        textAlign: "center", 
+        color: "#444", 
+        padding: "1rem" 
+      }}>
+        Enter your symptoms
+      </div>
+    )}
+    </div>
+
+      <div style={{ width: "100%", display: "flex", justifyContent: "center", borderTop: "1px solid gray", paddingTop: "1rem", marginTop: "100px" }}>
         <div style={{ width: "60%", marginBottom: "1rem", position: "relative" }}>
           <input
             type="text"
